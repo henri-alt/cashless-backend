@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "module": "ES2020",
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES5",
+    "allowJs": true,
+    "noImplicitAny": true,
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "noEmitOnError": false
+  },
+  "include": ["src/**/*"],
+  "exclude": ["./dist/**/*"]
+}

@@ -1,0 +1,8 @@
+{
+  "globalSetup": "<rootDir>/env/env-test.cjs",
+  "roots": ["<rootDir>/src/tests"],
+  "testEnvironment": "node",
+  "transform": {
+    "^.+.tsx?$": ["ts-jest", {}]
+  }
+}

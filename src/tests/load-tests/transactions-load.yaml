@@ -1,0 +1,272 @@
+config:
+  target: http://10.5.50.184:8080
+  http:
+    extendedMetrics: true
+  phases:
+    - duration: 15
+      arrivalRate: 50
+    - duration: 10
+      arrivalRate: 75
+    - duration: 5
+      arrivalRate: 100
+  variables:
+    scan-ids:
+      - "0a012f83-02fd-477b-8800-6d73594d2ef1"
+      - "3f50c50b-ecf9-4516-9ca7-f96aa69f5276"
+      - "5598b167-a777-430f-9639-13c242a80d7a"
+      - "2be93c8a-632a-47a8-acb3-b972fab3e445"
+
+#region before
+before:
+  flow:
+    #region log admin
+    - log: "Logging admin"
+    - post:
+        url: "/staffMembers/login"
+        headers:
+          content-type: "application/json"
+        json:
+          memberEmail: "email@email.com"
+          memberPassword: "Password123!"
+        capture:
+          - json: "$.token"
+            as: "admin-token"
+
+    #region create event
+    - log: "Creating Event"
+    - post:
+        url: "/events"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          startDate: "2024-07-29T21:14:44.594Z"
+          eventDescription: "test"
+          eventName: "test name"
+        capture:
+          - json: "$.eventId"
+            as: "event-id"
+
+    #region create staff
+    - log: "Creating staff"
+    - post:
+        url: "/staffMembers"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          memberName: "bartender"
+          memberEmail: "bartender@email.com"
+          memberPassword: "Password123!"
+          profileStatus: "active"
+          userClass: 1
+          eventId: "{{ event-id }}"
+        capture:
+          - json: "$.memberId"
+            as: "bartender-id"
+    - post:
+        url: "/staffMembers"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          memberName: "cashier"
+          memberEmail: "cashier@email.com"
+          memberPassword: "Password123!"
+          profileStatus: "active"
+          userClass: 2
+          eventId: "{{ event-id }}"
+        capture:
+          - json: "$.memberId"
+            as: "cashier-id"
+
+    #region create items
+    - log: "Creating event items"
+    - post:
+        url: "/events/{{ event-id }}/items"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          - itemName: "cola"
+            itemPrice: 1
+            staffPrice: 0
+            itemTax: 0
+            clientsSold: 0
+            itemCategory: "drinks"
+          - itemName: "vodka"
+            itemPrice: 1
+            staffPrice: 1
+            itemTax: 0
+            clientsSold: 0
+            itemCategory: "hard drinks"
+
+    #region create stands
+    - log: "Creating event stands"
+    - post:
+        url: "/events/{{ event-id }}/stands"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          standName: "cashiers"
+          menuItems: []
+          staffMembers:
+            - "{{ cashier-id }}"
+    - post:
+        url: "/events/{{ event-id }}/stands"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          standName: "bartenders"
+          menuItems:
+            - "cola"
+            - "vodka"
+          staffMembers:
+            - "{{ bartender-id }}"
+
+    #region start event
+    - log: "Starting event"
+    - patch:
+        url: "/events/{{ event-id }}"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
+        json:
+          eventStatus: "active"
+
+    #region login staff
+    - log: "Logging in staff"
+    - post:
+        url: "/staffMembers/login"
+        headers:
+          content-type: "application/json"
+        json:
+          memberEmail: "bartender@email.com"
+          memberPassword: "Password123!"
+        capture:
+          - json: "$.token"
+            as: "bartender-token"
+    - post:
+        url: "/staffMembers/login"
+        headers:
+          content-type: "application/json"
+        json:
+          memberEmail: "cashier@email.com"
+          memberPassword: "Password123!"
+        capture:
+          - json: "$.token"
+            as: "cashier-token"
+
+    #region create balances
+    - log: "Creating balances"
+    - post:
+        url: "/balances"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ cashier-token }}"
+        json:
+          balance: 1000000
+          scanId: "0a012f83-02fd-477b-8800-6d73594d2ef1"
+          eventId: "{{ event-id }}"
+    - post:
+        url: "/balances"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ cashier-token }}"
+        json:
+          balance: 1000000
+          scanId: "3f50c50b-ecf9-4516-9ca7-f96aa69f5276"
+          eventId: "{{ event-id }}"
+    - post:
+        url: "/balances"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ cashier-token }}"
+        json:
+          balance: 1000000
+          scanId: "5598b167-a777-430f-9639-13c242a80d7a"
+          eventId: "{{ event-id }}"
+    - post:
+        url: "/balances"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ cashier-token }}"
+        json:
+          balance: 1000000
+          scanId: "2be93c8a-632a-47a8-acb3-b972fab3e445"
+          eventId: "{{ event-id }}"
+
+#region scenarios
+scenarios:
+  - flow:
+      - post:
+          url: "/transactions"
+          headers:
+            content-type: "application/json"
+            authorization: "Bearer {{ bartender-token }}"
+          json:
+            eventId: "{{ event-id }}"
+            scanId: "{{ scan-ids }}"
+            transactionItems:
+              - amount: 1
+                itemName: "cola"
+                quantity: 1
+              - amount: 1
+                itemName: "vodka"
+                quantity: 1
+      - post:
+          url: "/transactions"
+          headers:
+            content-type: "application/json"
+            authorization: "Bearer {{ bartender-token }}"
+          json:
+            eventId: "{{ event-id }}"
+            scanId: "{{ scan-ids }}"
+            transactionItems:
+              - amount: 1
+                itemName: "cola"
+                quantity: 1
+              - amount: 1
+                itemName: "vodka"
+                quantity: 1
+      - post:
+          url: "/transactions"
+          headers:
+            content-type: "application/json"
+            authorization: "Bearer {{ bartender-token }}"
+          json:
+            eventId: "{{ event-id }}"
+            scanId: "{{ scan-ids }}"
+            transactionItems:
+              - amount: 1
+                itemName: "cola"
+                quantity: 1
+              - amount: 1
+                itemName: "vodka"
+                quantity: 1
+      - post:
+          url: "/transactions"
+          headers:
+            content-type: "application/json"
+            authorization: "Bearer {{ bartender-token }}"
+          json:
+            eventId: "{{ event-id }}"
+            scanId: "{{ scan-ids }}"
+            transactionItems:
+              - amount: 1
+                itemName: "cola"
+                quantity: 1
+              - amount: 1
+                itemName: "vodka"
+                quantity: 1
+
+#region after
+after:
+  flow:
+    - delete:
+        url: "/events/{{ event-id }}"
+        headers:
+          content-type: "application/json"
+          authorization: "Bearer {{ admin-token }}"
